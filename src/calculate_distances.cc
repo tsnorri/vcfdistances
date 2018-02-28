@@ -116,7 +116,7 @@ namespace {
 	};
 	
 	
-	class smc_output_handler final : public output_handler
+	class smd_output_handler final : public output_handler
 	{
 	public:
 		virtual void output(
@@ -225,7 +225,7 @@ namespace {
 		std::mutex										m_distance_mutex;
 		triangular_uint32_matrix						m_mutual_set_values;	// For Jaccard.
 		triangular_uint32_matrix						m_all_set_values;		// For Jaccard.
-		triangular_uint32_matrix						m_different_values;		// For Hamming and SMC.
+		triangular_uint32_matrix						m_different_values;		// For Hamming and SMD.
 		
 		lb::file_ostream								m_sample_names_stream;
 		std::vector <std::unique_ptr <output_handler>>	m_output_handlers;
@@ -249,7 +249,7 @@ namespace {
 		void output_sample_names(char const *dst_path) { lb::open_file_for_writing(dst_path, m_sample_names_stream, false); }
 		void output_hamming_distances(char const *dst_path) { add_output_handler <hamming_output_handler>(dst_path); }
 		void output_jaccard_distances(char const *dst_path) { add_output_handler <jaccard_output_handler>(dst_path); }
-		void output_smc_distances(char const *dst_path) { add_output_handler <smc_output_handler>(dst_path); }
+		void output_smd(char const *dst_path) { add_output_handler <smd_output_handler>(dst_path); }
 		
 		void prepare();
 		void calculate_distances(std::vector <std::string> &&inputs);
@@ -819,7 +819,7 @@ namespace {
 	}
 	
 	
-	void smc_output_handler::output(
+	void smd_output_handler::output(
 		std::uint32_t const total_variants,
 		triangular_uint32_matrix const &mutual_set_values,
 		triangular_uint32_matrix const &all_set_values,
@@ -859,7 +859,7 @@ namespace vcfdistances {
 		char const *sample_names_dst_path,
 		char const *hamming_dst_path,
 		char const *jaccard_dst_path,
-		char const *smc_dst_path
+		char const *smd_dst_path
 	)
 	{
 		calculate_context *ctx(new calculate_context(fmt));
@@ -873,8 +873,8 @@ namespace vcfdistances {
 		if (jaccard_dst_path)
 			ctx->output_jaccard_distances(jaccard_dst_path);
 		
-		if (smc_dst_path)
-			ctx->output_smc_distances(smc_dst_path);
+		if (smd_dst_path)
+			ctx->output_smd(smd_dst_path);
 		
 		ctx->prepare();
 		ctx->calculate_distances(std::move(inputs));

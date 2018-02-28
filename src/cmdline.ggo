@@ -12,5 +12,5 @@ option	"input-format"			f	"Variant call file format"						typestr = "format"	val
 option	"output-sample-names"	n	"Sample names target path"				string	typestr = "filename"																	optional
 option	"output-hamming"		-	"Output Hamming distances"				string	typestr = "filename"																	optional
 option	"output-jaccard"		-	"Output Jaccard distances"				string	typestr = "filename"																	optional
-option	"output-smc"			-	"Output Simple Matching Coefficient"	string	typestr = "filename"																	optional
+option	"output-smd"			-	"Output Simple Matching Distance"		string	typestr = "filename"																	optional
 

@@ -73,7 +73,7 @@ int main(int argc, char **argv)
 		args_info.output_sample_names_arg,
 		args_info.output_hamming_arg,
 		args_info.output_jaccard_arg,
-		args_info.output_smc_arg
+		args_info.output_smd_arg
 	);
 	
 	cmdline_parser_free(&args_info);

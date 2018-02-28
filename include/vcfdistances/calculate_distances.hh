@@ -17,7 +17,7 @@ namespace vcfdistances {
 		char const *sample_names_dst_path,
 		char const *hamming_dst_path,
 		char const *jaccard_dst_path,
-		char const *smc_dst_path
+		char const *smd_dst_path
 	);
 }
 
