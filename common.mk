@@ -2,7 +2,7 @@
 unexport SDKROOT
 
 WARNING_FLAGS	= -Wall -Werror -Wno-deprecated-declarations -Wno-unused
-OPT_FLAGS		= -O0 -g
+OPT_FLAGS		= -O2 -g
 
 CFLAGS			= -std=c99   $(OPT_FLAGS) $(WARNING_FLAGS)
 CXXFLAGS		= -std=c++1z $(OPT_FLAGS) $(WARNING_FLAGS)
