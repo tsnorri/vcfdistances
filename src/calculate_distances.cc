@@ -18,6 +18,7 @@
 #include <thread>
 #include <valarray>
 #include <vcfdistances/calculate_distances.hh>
+#include <vector>
 
 
 namespace bnu	= boost::numeric::ublas;
@@ -209,7 +210,7 @@ namespace {
 	protected:
 		vd::input_format								m_input_format{};
 		lb::vcf_reader::sample_name_map					m_sample_names;
-		std::valarray <std::uint8_t>					m_ploidy;
+		std::vector <std::uint8_t>						m_ploidy;
 		std::uint32_t									m_haplotype_count{0};
 		std::atomic_size_t								m_variant_count{0};
 		std::atomic_size_t								m_calculation_tasks{0};
@@ -272,7 +273,7 @@ namespace {
 		void process_path(std::size_t const i, std::string const &path);
 		void process_with_reader(std::size_t const i, lb::vcf_reader &reader);
 		void read_headers(lb::vcf_reader &reader, bool const is_first);
-		void check_ploidy(lb::vcf_reader &reader, std::valarray <std::uint8_t> &ploidy);
+		void check_ploidy(lb::vcf_reader &reader, std::vector <std::uint8_t> &ploidy);
 		void read_haplotypes(
 			lb::vcf_reader &reader,
 			std::vector <sdsl::bit_vector> &haplotypes,
@@ -302,8 +303,8 @@ namespace {
 	void calculate_context::prepare()
 	{
 		m_input_queue.reset(dispatch_queue_create("fi.iki.tsnorri.vcfdistances.input_queue", DISPATCH_QUEUE_SERIAL));
-		//m_task_queue.reset(dispatch_queue_create("fi.iki.tsnorri.vcfdistances.task_queue", DISPATCH_QUEUE_CONCURRENT));
-		m_task_queue.reset(dispatch_queue_create("fi.iki.tsnorri.vcfdistances.task_queue", DISPATCH_QUEUE_SERIAL));
+		m_task_queue.reset(dispatch_queue_create("fi.iki.tsnorri.vcfdistances.task_queue", DISPATCH_QUEUE_CONCURRENT));
+		//m_task_queue.reset(dispatch_queue_create("fi.iki.tsnorri.vcfdistances.task_queue", DISPATCH_QUEUE_SERIAL));
 		m_task_semaphore.reset(dispatch_semaphore_create(2 * std::thread::hardware_concurrency())); // FIXME: some other value?
 	}
 	
@@ -395,7 +396,7 @@ namespace {
 		{
 			m_sample_names = reader.sample_names();
 			check_ploidy(reader, m_ploidy);
-			m_haplotype_count = m_ploidy.sum();
+			m_haplotype_count = std::accumulate(m_ploidy.cbegin(), m_ploidy.cend(), static_cast <uint64_t>(0));
 			
 			// Allocate space for the distances.
 			m_mutual_set_values.resize(m_haplotype_count, m_haplotype_count, false);
@@ -419,7 +420,7 @@ namespace {
 		{
 			lb::always_assert(reader.sample_names() == m_sample_names);
 			
-			std::valarray <std::uint8_t> ploidy;
+			std::vector <std::uint8_t> ploidy;
 			check_ploidy(reader, ploidy);
 			lb::always_assert(
 				std::equal(
@@ -441,7 +442,7 @@ namespace {
 	)
 	{
 		lb::dispatch_async_fn(dispatch_get_main_queue(), [](){
-			std::cerr << "Counting lines…" << std::endl;
+			std::cerr << "Counting lines…" << std::flush;
 		});
 		{
 			reader.reset();
@@ -455,6 +456,9 @@ namespace {
 		
 		auto const lines(reader.lineno() - reader.last_header_lineno());
 		m_variant_count += lines;
+		lb::dispatch_async_fn(dispatch_get_main_queue(), [lines](){
+			std::cerr << " got " << lines << '.' << std::endl;
+		});
 		
 		// Allocate bitvectors for each sample.
 		// Also have a buffer to speed up reading.
@@ -567,9 +571,10 @@ namespace {
 	}
 	
 	
-	void calculate_context::check_ploidy(lb::vcf_reader &reader, std::valarray <std::uint8_t> &ploidy)
+	void calculate_context::check_ploidy(lb::vcf_reader &reader, std::vector <std::uint8_t> &ploidy)
 	{
-		ploidy.resize(reader.sample_names().size(), 0);
+		auto const sample_count(reader.sample_names().size());
+		ploidy.resize(sample_count, 0);
 		
 		reader.reset();
 		reader.set_parsed_fields(lb::vcf_field::ALL);
@@ -687,7 +692,7 @@ namespace {
 	
 	void calculate_context::report_progress_mt(std::size_t const file_idx, std::size_t const comparisons)
 	{
-		std::cerr << "File " << file_idx << ": done " << comparisons << " comparisons." << std::endl;
+		std::cerr << "File " << (1 + file_idx) << ": done " << comparisons << " comparisons." << std::endl;
 	}
 	
 	
@@ -725,7 +730,7 @@ namespace {
 							task.different_values()
 						);
 						
-						if (0 == task_count % 100)
+						if (0 == task_count % 100000)
 							m_ctx->report_progress(m_file_idx, task_count);
 						
 						dispatch_semaphore_signal(sema);
