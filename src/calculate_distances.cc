@@ -39,8 +39,8 @@ namespace {
 	class calculate_task;
 	class calculate_context;
 	
-	// Used the idea from https://lists.boost.org/ublas/2009/05/3509.php
 	// Divide a vector element-wise, store the result to lhs.
+	// Used the idea from https://lists.boost.org/ublas/2009/05/3509.php
 	template <typename t_lhs_el, typename t_rhs_el>
 	void divide_vector(
 		bnu::matrix_row <t_lhs_el> &lhs,
@@ -50,6 +50,7 @@ namespace {
 		lhs = bnu::element_div(lhs, rhs);
 	}
 	
+	// Hadamard division for matrices.
 	template <typename t_lhs_matrix, typename t_rhs_matrix>
 	void hadamard_division(
 		t_lhs_matrix &lhs,
@@ -70,6 +71,7 @@ namespace {
 	}
 	
 	
+	// Base class for producing output based on the counts produced for calculate_context.
 	class output_handler
 	{
 	protected:
@@ -80,6 +82,7 @@ namespace {
 		
 		lb::file_ostream &stream() { return m_stream; }
 		
+		// Produce the output.
 		virtual void output(
 			std::uint32_t const total_variants,
 			triangular_uint32_matrix const &mutual_set_values,
@@ -88,6 +91,7 @@ namespace {
 		) = 0;
 		
 	protected:
+		// Output a (triangular) matrix, values separated by tabs.
 		template <typename t_matrix>
 		void output_matrix(t_matrix const &matrix)
 		{
@@ -107,6 +111,7 @@ namespace {
 	};
 	
 	
+	// Output Hamming distances.
 	class hamming_output_handler final : public output_handler
 	{
 	public:
@@ -119,6 +124,7 @@ namespace {
 	};
 	
 	
+	// Output Simple Matching Distances.
 	class smd_output_handler final : public output_handler
 	{
 	public:
@@ -131,6 +137,7 @@ namespace {
 	};
 	
 	
+	// Output Jaccard distances.
 	class jaccard_output_handler final : public output_handler
 	{
 	public:
@@ -143,6 +150,7 @@ namespace {
 	};
 	
 	
+	// Task for comparing two haplotypes at the given indices i and j.
 	class compare_two_task final
 	{
 	protected:
@@ -176,6 +184,7 @@ namespace {
 	};
 	
 	
+	// Task for comparing all the haplotypes in a variant file.
 	class calculate_task final
 	{
 	protected:
@@ -314,9 +323,11 @@ namespace {
 	
 	void calculate_context::calculate_distances(std::vector <std::string> &&inputs)
 	{
+		// Update the number of calculation tasks, used to determine when finished.
 		m_calculation_tasks = inputs.size();
 		
-		// Use dispatch_async with each of the input paths.
+		// Use dispatch_async to start a processing task with each of the input paths.
+		// The input queue is serial, though.
 		std::size_t i(0);
 		for (auto &path : inputs)
 		{
@@ -341,9 +352,10 @@ namespace {
 		std::string const &path
 	)
 	{
+		// Instantiate a VCF reader and a vcf_input.
+		// Keep them in the current stack frame and call the processing functions.
 		lb::vcf_reader reader;
 		
-		// Output status in this thread for now.
 		lb::dispatch_async_fn(dispatch_get_main_queue(), [path](){
 			std::cerr << "Processing " << path << "…" << std::endl;
 		});
@@ -371,14 +383,18 @@ namespace {
 	
 	void calculate_context::process_with_reader(std::size_t const i, lb::vcf_reader &reader)
 	{
+		// Read the variants and start a distance calculation task.
+		
 		std::vector <sdsl::bit_vector> haplotypes;
 		std::vector <std::vector <std::uint8_t>> multi_alt_haplotypes;
 		
 		read_headers(reader, 0 == i);
 		
+		// For the first input, output the sample names if needed.
 		if (0 == i && m_sample_names_stream.is_open())
 			output_sample_names_to_stream();
 		
+		// Only calculate the distances if requested.
 		if (m_output_handlers.size())
 		{
 			read_haplotypes(reader, haplotypes, multi_alt_haplotypes);
@@ -394,7 +410,7 @@ namespace {
 		reader.read_header();
 		
 		// Check that the sample names match.
-		// Also check the ploidy.
+		// Also check the ploidy but for the first position only.
 		if (is_first)
 		{
 			m_sample_names = reader.sample_names();
@@ -427,7 +443,7 @@ namespace {
 			check_ploidy(reader, ploidy);
 			lb::always_assert(
 				std::equal(
-					/* std::execution::parallel_unsequenced_policy, */ // FIXME: enable.
+					/* std::execution::parallel_unsequenced_policy, */ // FIXME: enable; not available in libc++ 5.0.
 					std::begin(ploidy),
 					std::end(ploidy),
 					std::begin(m_ploidy),
@@ -444,6 +460,7 @@ namespace {
 		std::vector <std::vector <std::uint8_t>> &multi_alt_haplotypes
 	)
 	{
+		// Count the lines by parsing as little as possible.
 		lb::dispatch_async_fn(dispatch_get_main_queue(), [](){
 			std::cerr << "Counting lines…" << std::flush;
 		});
@@ -464,7 +481,8 @@ namespace {
 		});
 		
 		// Allocate bitvectors for each sample.
-		// Also have a buffer to speed up reading.
+		// Also have a buffer to speed up reading; copy each 64-bit word to the bit vectors
+		// after processing 64 variants.
 		lb::dispatch_async_fn(dispatch_get_main_queue(), [](){
 			std::cerr << "Allocating bitvectors…" << std::endl;
 		});
@@ -478,6 +496,7 @@ namespace {
 		
 		std::uint32_t single_alt_variants(0);
 		
+		// Process the variants.
 		lb::dispatch_async_fn(dispatch_get_main_queue(), [](){
 			std::cerr << "Reading variants…" << std::endl;
 		});
@@ -502,12 +521,14 @@ namespace {
 						&lineno
 					](lb::transient_variant const &var) -> bool {
 					
-					// If there is just one ALT, use the bit vectors. Otherwise, use the std::vector.
+					// If there is just one ALT, use the bit vectors to store the variant position.
+					// Otherwise, use the std::vector to store the ALT number with the variant position.
 					if (1 < var.alts().size())
 					{
-						// Add a new vector.
+						// Add a new vector for this variant.
 						auto &vec(multi_alt_haplotypes.emplace_back(m_haplotype_count, 0));
 						
+						// Store the ALT numbers.
 						std::size_t j(0);
 						for (auto const &sample : var.samples())
 						{
@@ -517,7 +538,7 @@ namespace {
 					}
 					else
 					{
-						// Read the value of each genotype, set the corresponding bit in buffer if needed.
+						// Read the value of each genotype, set the corresponding bit in the corresponding buffer.
 						{
 							std::size_t j(0);
 							for (auto const &sample : var.samples())
@@ -534,15 +555,16 @@ namespace {
 						++i;
 						++single_alt_variants;
 					
-						// Check if we have a whole word.
+						// Check if the buffer was filled.
 						if (64 == i)
 						{
+							// Copy the words to the bit vectors.
 							for (std::size_t j(0); j < m_haplotype_count; ++j)
 							{
 								auto const val(gt_buffer[j]);
 								*(haplotypes[j].data() + k) = val;
 							}
-
+							
 							i = 0;
 							++k;
 							gt_buffer = 0;
@@ -561,7 +583,7 @@ namespace {
 				});
 			} while (should_continue);
 			
-			// Copy the final word if needed.
+			// Copy the final words if needed.
 			if (i)
 			{
 				for (std::size_t j(0); j < m_haplotype_count; ++j)
@@ -576,6 +598,7 @@ namespace {
 	
 	void calculate_context::check_ploidy(lb::vcf_reader &reader, std::vector <std::uint8_t> &ploidy)
 	{
+		// Store the ploidies from the first variant.
 		auto const sample_count(reader.sample_names().size());
 		ploidy.resize(sample_count, 0);
 		
@@ -607,6 +630,7 @@ namespace {
 		std::vector <std::vector <std::uint8_t>> &&multi_alt_haplotypes
 	)
 	{
+		// Create a calculate_task for comparing samples in one variant file, store the task and execute.
 		calculate_task task(*this, file_idx, std::move(haplotypes), std::move(multi_alt_haplotypes));
 		task.prepare();
 		
@@ -619,13 +643,16 @@ namespace {
 			it = res.first;
 		}
 		
-		// execute_comparison_tasks is not going to affect the comparison order.
+		// execute_comparison_tasks is not going to affect the comparison order of calculate_tasks.
 		const_cast <calculate_task &>(*it).execute_comparison_tasks();
 	}
 	
 	
 	void calculate_context::finish_calculation_task(calculate_task &task)
 	{
+		// Remove the finished task. If it was the last one,
+		// write the distance matrices to the output streams and exit.
+		
 		{
 			std::lock_guard <std::mutex> guard(m_task_mutex);
 			m_tasks.erase(task);
@@ -647,6 +674,8 @@ namespace {
 		std::uint32_t different_value
 	)
 	{
+		// Update the difference matrices.
+		// Called from the concurrent queue.
 		std::lock_guard <std::mutex> guard(m_distance_mutex);
 		m_mutual_set_values(i, j) += same_value_present_in_both;
 		m_all_set_values(i, j) += any_value_present_in_either;
@@ -656,7 +685,9 @@ namespace {
 	
 	void calculate_context::output_sample_names_to_stream()
 	{
-		// Order guaranteed b.c. m_sample_names is an std::map.
+		// Write the sample names to the corresponding output stream.
+		// Since the names are in an std::map with sample numbers as keys,
+		// the order will be what we expect.
 		std::size_t sample_idx(0);
 		for (auto const &kv : m_sample_names)
 		{
@@ -672,6 +703,7 @@ namespace {
 	
 	void calculate_context::output_distances()
 	{
+		// Call each output handler.
 		for (auto &handler : m_output_handlers)
 			handler->output(m_variant_count, m_mutual_set_values, m_all_set_values, m_different_values);
 	}
@@ -680,6 +712,7 @@ namespace {
 	template <typename t_handler>
 	void calculate_context::add_output_handler(char const *dst_path)
 	{
+		// Instantiate an output handler and open its stream for writing.
 		auto &handler(m_output_handlers.emplace_back(new t_handler()));
 		lb::open_file_for_writing(dst_path, handler->stream(), false);
 	}
@@ -707,6 +740,7 @@ namespace {
 	
 	void calculate_task::execute_comparison_tasks()
 	{
+		// Instantiate a comparison task (in the lambda) and compare a pair of samples.
 		auto queue(*(m_ctx->task_queue()));
 		auto sema(*(m_ctx->task_semaphore()));
 		std::size_t task_count(0);
@@ -751,6 +785,8 @@ namespace {
 	
 	void compare_two_task::execute()
 	{
+		// Compare two samples by using bit operations in the case of single-ALT variants
+		// and pairwise comparison of ALT field values otherwise.
 		auto const &haplotypes(m_calculate_task->haplotypes());
 		auto const &multi_alt_haplotypes(m_calculate_task->multi_alt_haplotypes());
 		
@@ -775,14 +811,17 @@ namespace {
 		std::uint32_t any_different_mv(0);
 		for (auto const &mv_vec : multi_alt_haplotypes)
 		{
+			// For Jaccard distance, check if both samples have a non-zero ALT.
 			if (mv_vec[m_i] && mv_vec[m_j])
 			{
 				++any_two_nonzero_mv;
 				
+				// Check if the values are equal.
 				if (mv_vec[m_i] == mv_vec[m_j])
 					++same_nonzero_mv;
 			}
 			
+			// For Hamming and SMD, count different values.
 			if (mv_vec[m_i] != mv_vec[m_j])
 				++any_different_mv;
 		}
@@ -795,6 +834,7 @@ namespace {
 	
 	std::uint32_t compare_two_task::count_ones(sdsl::bit_vector const &bv) const
 	{
+		// Count ones in bit vectors by using an operation on each 64-bit word.
 		auto const *data(bv.data());
 		auto const bit_count(bv.size());
 		auto const full_word_count(bit_count / 64);
@@ -818,6 +858,7 @@ namespace {
 		triangular_uint32_matrix const &different_values
 	)
 	{
+		// Hamming distance is equal to the number of different values.
 		output_matrix(different_values);
 	}
 	
@@ -829,6 +870,7 @@ namespace {
 		triangular_uint32_matrix const &different_values
 	)
 	{
+		// SMD is equal to the number of different values normalized.
 		triangular_float_matrix mat(1.0 * different_values / total_variants);
 		output_matrix(mat);
 	}
@@ -841,6 +883,11 @@ namespace {
 		triangular_uint32_matrix const &different_values
 	)
 	{
+		// Jaccard distance of two sets A and B is
+		// 1 - J(A, B) = 1 - |A ∩ B| / |A ∪ B|.
+		// We consider only “non-missing” values, i.e. for
+		// each pair the variants that are present in at least
+		// one of the samples.
 		triangular_float_matrix mat(mutual_set_values * -1.0);
 		hadamard_division(mat, all_set_values);
 		for (std::size_t i(0), count(mat.size1()); i < count; ++i)
@@ -867,6 +914,7 @@ namespace vcfdistances {
 	{
 		calculate_context *ctx(new calculate_context(fmt));
 		
+		// Prepare to output matrices according to the given file names.
 		if (sample_names_dst_path)
 			ctx->output_sample_names(sample_names_dst_path);
 		
@@ -879,6 +927,7 @@ namespace vcfdistances {
 		if (smd_dst_path)
 			ctx->output_smd(smd_dst_path);
 		
+		// Calculate the distances.
 		ctx->prepare();
 		ctx->calculate_distances(std::move(inputs));
 	}

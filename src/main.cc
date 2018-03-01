@@ -26,6 +26,7 @@ namespace vd	= vcfdistances;
 
 namespace {
 	
+	// Convert Gengetopt's enum_input_format to vd::input_format.
 	vd::input_format input_format(enum_input_format const fmt)
 	{
 		switch (fmt)
@@ -58,15 +59,18 @@ int main(int argc, char **argv)
 	std::cerr << "Assertions have been enabled." << std::endl;
 #endif
 	
-	// libdispatch on macOS does not need pthread_workqueue.
+	// Some versions of libdispatch on Linux require pthread_workqueue_init_np()
+	// when linked statically.
 #ifdef __linux__
 	pthread_workqueue_init_np();
 #endif
 	
+	// Copy the VCF file names to a vector.
 	std::vector <std::string> inputs;
 	for (std::size_t i(0); i < args_info.variants_given; ++i)
 		inputs.emplace_back(args_info.variants_arg[i]);
 	
+	// Calculate the distances.
 	vd::calculate_distances(
 		std::move(inputs),
 		input_format(args_info.input_format_arg),
