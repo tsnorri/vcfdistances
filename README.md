@@ -4,7 +4,9 @@ Calculate SMD and Hamming and Jaccard distances between each pair of samples in 
 
 ## Build/Runtime Requirements
 
-On Linux the following libraries are required:
+- [libbio](https://github.com/tsnorri/libbio) (provided as a Git submodule)
+
+On Linux also the following libraries are required:
 
 - [libdispatch](http://nickhutchinson.me/libdispatch/) (provided as a Git submodule)
 - [libpthread_workqueue](https://github.com/mheily/libpwq) (provided as a Git submodule)
