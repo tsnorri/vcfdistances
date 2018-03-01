@@ -7,6 +7,7 @@
 #define VCFDISTANCES_CALCULATE_DISTANCE_HH
 
 #include <vcfdistances/types.hh>
+#include <vector>
 
 
 namespace vcfdistances {

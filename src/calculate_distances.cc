@@ -3,6 +3,9 @@
  This code is licensed under MIT license (see LICENSE for details).
  */
 
+// XXX workaround for Boost 1.64.0.
+#include <boost/serialization/array_wrapper.hpp>
+
 #include <boost/function_output_iterator.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/filtering_stream.hpp>

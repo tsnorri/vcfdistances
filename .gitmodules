@@ -7,3 +7,9 @@
 [submodule "lib/libbio"]
 	path = lib/libbio
 	url = https://github.com/tsnorri/libbio.git
+[submodule "lib/libpwq"]
+	path = lib/libpwq
+	url = https://github.com/mheily/libpwq.git
+[submodule "lib/libdispatch"]
+	path = lib/libdispatch
+	url = https://github.com/nickhutchinson/libdispatch
