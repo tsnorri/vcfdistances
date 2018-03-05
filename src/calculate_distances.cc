@@ -401,8 +401,10 @@ namespace {
 			lb::open_file_for_reading(path.c_str(), gzip_stream);
 			
 			lb::vcf_stream_input <ios::filtering_istream> vcf_stream;
-			vcf_stream.input_stream().push(ios::gzip_decompressor());
-			vcf_stream.input_stream().push(gzip_stream);
+			auto &filtering_istream(vcf_stream.input_stream());
+			filtering_istream.push(ios::gzip_decompressor());
+			filtering_istream.push(gzip_stream);
+			filtering_istream.exceptions(std::istream::badbit);
 			reader.set_input(vcf_stream);
 			process_with_reader(i, reader);
 		}
