@@ -2,7 +2,6 @@
 # This code is licensed under MIT license (see LICENSE for details).
 
 package	"vcfdistances"
-version	"0.1"
 purpose	"Calculate various distances between sequences."
 usage	"vcfdistances --variants=filename.vcf [--variants=filename-2.vcf ...] --input-format=... [--output-sample-names=...] [-output-hamming=hamming.txt] [...]"
 

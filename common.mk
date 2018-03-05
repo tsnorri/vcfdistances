@@ -6,7 +6,7 @@ OPT_FLAGS		= -O2 -g
 
 CFLAGS			= -std=c99   $(OPT_FLAGS) $(WARNING_FLAGS)
 CXXFLAGS		= -std=c++1z $(OPT_FLAGS) $(WARNING_FLAGS)
-CPPFLAGS		= -I../include -I../lib/libbio/include -I../lib/sdsl-lite/include $(BOOST_INCLUDE)
+CPPFLAGS		= -DHAVE_CONFIG_H -I../include -I../lib/libbio/include -I../lib/sdsl-lite/include $(BOOST_INCLUDE)
 LDFLAGS			= ../lib/libbio/src/libbio.a $(LIBDISPATCH_LIBS) $(BOOST_LIBS) -lz
 
 COMPILER_CONSIDERS_MISLEADING_INDENTATION ?= 0
