@@ -1,5 +1,16 @@
 .DS_Store
 
+# Local overrides
+local.mk
+
+# Generated files
+src/config.h
+src/cmdline.h
+src/cmdline.c
+
+# Build products
+src/vcfdistances
+
 # Prerequisites
 *.d
 
