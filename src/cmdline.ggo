@@ -7,7 +7,8 @@ usage	"vcfdistances --variants=filename.vcf [--variants=filename-2.vcf ...] --in
 
 section "Input and output options"
 option	"variants"					a	"Variant call file path"										string	typestr = "filename"																		required	multiple
-option	"input-format"				f	"Variant call file format"												typestr = "format"		values = "uncompressed", "gzip" default = "uncompressed"	enum	optional
+# XXX Gzip input requires a seekable input stream, which hasn't been implemented.
+option	"input-format"				f	"Variant call file format"												typestr = "format"		values = "uncompressed", "gzip" default = "uncompressed"	enum	optional	hidden
 option	"output-sample-names"		n	"Sample names target path"										string	typestr = "filename"																		optional
 option	"output-hamming"			-	"Output Hamming distances"										string	typestr = "filename"																		optional
 option	"output-jaccard"			-	"Output Jaccard distances"										string	typestr = "filename"																		optional
