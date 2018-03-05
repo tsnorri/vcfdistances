@@ -77,7 +77,9 @@ int main(int argc, char **argv)
 		args_info.output_sample_names_arg,
 		args_info.output_hamming_arg,
 		args_info.output_jaccard_arg,
-		args_info.output_smd_arg
+		args_info.output_smd_arg,
+		args_info.output_intersection_sizes_arg,
+		args_info.output_union_sizes_arg
 	);
 	
 	cmdline_parser_free(&args_info);

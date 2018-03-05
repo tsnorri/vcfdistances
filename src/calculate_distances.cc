@@ -150,6 +150,32 @@ namespace {
 	};
 	
 	
+	// Output Jaccard similarity coefficient numerators.
+	class intersection_size_output_handler final : public output_handler
+	{
+	public:
+		virtual void output(
+			std::uint32_t const total_variants,
+			triangular_uint32_matrix const &mutual_set_values,
+			triangular_uint32_matrix const &all_set_values,
+			triangular_uint32_matrix const &different_values
+		) override;
+	};
+	
+	
+	// Output Jaccard similarity coefficient denominators.
+	class union_size_output_handler final : public output_handler
+	{
+	public:
+		virtual void output(
+			std::uint32_t const total_variants,
+			triangular_uint32_matrix const &mutual_set_values,
+			triangular_uint32_matrix const &all_set_values,
+			triangular_uint32_matrix const &different_values
+		) override;
+	};
+	
+	
 	// Task for comparing two haplotypes at the given indices i and j.
 	class compare_two_task final
 	{
@@ -262,6 +288,8 @@ namespace {
 		void output_hamming_distances(char const *dst_path) { add_output_handler <hamming_output_handler>(dst_path); }
 		void output_jaccard_distances(char const *dst_path) { add_output_handler <jaccard_output_handler>(dst_path); }
 		void output_smd(char const *dst_path) { add_output_handler <smd_output_handler>(dst_path); }
+		void output_intersection_sizes(char const *dst_path) { add_output_handler <intersection_size_output_handler>(dst_path); }
+		void output_union_sizes(char const *dst_path) { add_output_handler <union_size_output_handler>(dst_path); }
 		
 		void prepare();
 		void calculate_distances(std::vector <std::string> &&inputs);
@@ -858,6 +886,10 @@ namespace {
 		triangular_uint32_matrix const &different_values
 	)
 	{
+		lb::dispatch_async_fn(dispatch_get_main_queue(), [](){
+			std::cerr << "Writing Hamming distances…" << std::endl;
+		});
+		
 		// Hamming distance is equal to the number of different values.
 		output_matrix(different_values);
 	}
@@ -870,6 +902,10 @@ namespace {
 		triangular_uint32_matrix const &different_values
 	)
 	{
+		lb::dispatch_async_fn(dispatch_get_main_queue(), [](){
+			std::cerr << "Writing Simple Matching Distances…" << std::endl;
+		});
+		
 		// SMD is equal to the number of different values normalized.
 		triangular_float_matrix mat(1.0 * different_values / total_variants);
 		output_matrix(mat);
@@ -883,6 +919,10 @@ namespace {
 		triangular_uint32_matrix const &different_values
 	)
 	{
+		lb::dispatch_async_fn(dispatch_get_main_queue(), [](){
+			std::cerr << "Writing Jaccard distances…" << std::endl;
+		});
+		
 		// Jaccard distance of two sets A and B is
 		// 1 - J(A, B) = 1 - |A ∩ B| / |A ∪ B|.
 		// We consider only “non-missing” values, i.e. for
@@ -898,6 +938,36 @@ namespace {
 		
 		output_matrix(mat);
 	}
+	
+	
+	void intersection_size_output_handler::output(
+		std::uint32_t const total_variants,
+		triangular_uint32_matrix const &mutual_set_values,
+		triangular_uint32_matrix const &all_set_values,
+		triangular_uint32_matrix const &different_values
+	)
+	{
+		lb::dispatch_async_fn(dispatch_get_main_queue(), [](){
+			std::cerr << "Writing intersection sizes…" << std::endl;
+		});
+		
+		output_matrix(mutual_set_values);
+	}
+	
+	
+	void union_size_output_handler::output(
+		std::uint32_t const total_variants,
+		triangular_uint32_matrix const &mutual_set_values,
+		triangular_uint32_matrix const &all_set_values,
+		triangular_uint32_matrix const &different_values
+	)
+	{
+		lb::dispatch_async_fn(dispatch_get_main_queue(), [](){
+			std::cerr << "Writing union sizes…" << std::endl;
+		});
+		
+		output_matrix(all_set_values);
+	}
 }
 
 
@@ -909,7 +979,9 @@ namespace vcfdistances {
 		char const *sample_names_dst_path,
 		char const *hamming_dst_path,
 		char const *jaccard_dst_path,
-		char const *smd_dst_path
+		char const *smd_dst_path,
+		char const *intersection_sizes_dst_path,
+		char const *union_sizes_dst_path
 	)
 	{
 		calculate_context *ctx(new calculate_context(fmt));
@@ -926,6 +998,12 @@ namespace vcfdistances {
 		
 		if (smd_dst_path)
 			ctx->output_smd(smd_dst_path);
+		
+		if (intersection_sizes_dst_path)
+			ctx->output_intersection_sizes(intersection_sizes_dst_path);
+		
+		if (union_sizes_dst_path)
+			ctx->output_union_sizes(union_sizes_dst_path);
 		
 		// Calculate the distances.
 		ctx->prepare();
