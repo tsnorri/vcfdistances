@@ -435,6 +435,10 @@ namespace {
 	
 	void calculate_context::read_headers(lb::vcf_reader &reader, bool const is_first)
 	{
+		lb::dispatch_async_fn(dispatch_get_main_queue(), [path](){
+			std::cerr << "Reading headers…" << std::endl;
+		});
+		
 		reader.read_header();
 		
 		// Check that the sample names match.
